@@ -1,0 +1,280 @@
+**************** FTP ********************
+******************************************
+sudo apt install vsftpd
+
+sudo nano /etc/vsftpd.conf 
+ - anonymous_enable=YES
+ - write_enable=YES
+ - anon_upload_enable=YES
+
+sudo systemctl restart vsftpd.service
+
+******************************************
+**************** SAMBA ****************
+******************************************
+sudo apt install samba -y
+
+sudo mkdir -p /home/sharing
+
+sudo nano /etc/samba/smb.conf
+ - workgroup = WORKGROUP
+ - server string = samba_server
+ - interfaces = lo enp0s3
+ - bind interfaces only = yes 
+ - log file = /var/log/samba/log.%m
+ - max log size = 1000
+ - logging = file
+ - panic action = /usr/share/samba/panic-action %d
+ - server role = standalone server
+ - usershare allow guests = yes
+
+testparm         (daca totul e oke)
+
+sudo smbpasswd -a username (username = username@server sau ce va fi) 
+//// daca tre sa adaugi user nou - sudo adduser nume
+//// sudo setfacl -R -m "u:nume:rwx" /home/sharing
+
+sudo nano /etc/samba/smb.conf    ////  adaugi/schimbi la sfarsit: 
+ - [sharing]
+ - comment = Samba share directory
+ - path = /home/sharing
+ - read only = no
+ - writable = yes
+ - browseable = yes
+ - guest ok = no
+ - valid users = @username ( @user daca ai ) 
+
+testparm
+
+sudo ufw allow samba
+
+sudo systemctl restart smbd
+
+////// pentru conectare in directoriu - smb://ip-address/sharing // ip a -pentru ip
+
+******************************************
+**************** NGINX *****************
+******************************************
+
+sudo apt install nginx
+sudo systemctl start nginx
+
+//////////////// Configurare //////////////// 
+cd /var/www
+
+sudo mkdir site
+
+cd site
+
+sudo nano index.html
+------------------------------------------------------------------------------
+<!doctype html>
+<html>
+<head>
+    <title>Hello, Nginx!</title>
+</head>
+<body>
+    <h1>Hello, Nginx!</h1>
+    <p>We have just configured our Nginx web server on Ubuntu Server!</p>
+</body>
+</html>
+------------------------------------------------------------------------------
+
+cd /etc/nginx/sites-enabled 
+
+sudo cp default site
+
+sudo nano site
+--- punem la toate liniile # si le scoatem pe acele jos in virtual host si schimbam:
+------------------------------------------------------------------------------
+server {
+       listen 81;
+       listen [::]:81;
+
+       server_name site.com;
+
+       root /var/www/site;
+       index index.html;
+
+       location / {
+               try_files $uri $uri/ =404;
+       }
+}
+------------------------------------------------------------------------------
+
+sudo service nginx restart     ///  sudo systemctl restart nginx
+//////// ip a 
+
+/////////////// Pentru a securiza /////////////// 
+////  sudo ufw allow OpenSSH  (daca trebuie) 
+
+sudo ufw allow 'Nginx Full'  
+sudo ufw allow 81/tcp      //// 81-sau ce ai pus la 'listen' sus
+sudo ufw enable
+
+
+******************************************
+**************** APACHE ***************
+******************************************
+sudo apt install apache2
+sudo systemctl start apache2
+
+//////////////// Configurare //////////////// 
+cd /var/www
+
+sudo mkdir site
+
+cd site
+
+sudo nano index.html
+------------------------------------------------------------------------------
+<!doctype html>
+<html>
+<head>
+    <title>Hello</title>
+</head>
+<body>
+    <h1>Hello</h1>
+</body>
+</html>
+------------------------------------------------------------------------------
+
+cd /etc/apache2/sites-available
+
+sudo cp 000-default.conf site.conf
+
+sudo nano site.conf
+---------- schimbam / adaugam :
+---------------------------------------------------------------
+ServerAdmin yourname@example.com
+DocumentRoot /var/www/site/
+
+ServerName site.com
+---------------------------------------------------------------
+sudo rm 000-default.conf
+
+sudo a2ensite site.conf 
+
+sudo systemctl reload apache2
+
+/////////////// Pentru a securiza /////////////// 
+////  sudo ufw allow OpenSSH  (daca trebuie) 
+
+sudo ufw allow 'Apache Full'  
+sudo ufw allow 80/tcp     
+sudo ufw enable
+
+
+**********************************************************
+**************** VIRTUAL HOST 2 SITE ***************
+**********************************************************
+dupa instalare - NGINX 
+*************************
+//////////////// Configurare //////////////// 
+cd /var/www
+
+sudo cp -r site site2
+
+cd site2
+
+sudo nano index.html
+------------------------------------------------------------------------------
+<!doctype html>
+<html>
+<head>
+    <title>Hello, Nginx 2!</title>
+</head>
+<body>
+    <h1>Hello, Nginx 2!</h1>
+    <p>We have just configured our Nginx web server on Ubuntu Server!</p>
+</body>
+</html>
+------------------------------------------------------------------------------
+
+cd /etc/nginx/sites-enabled 
+
+sudo cp site site2
+
+sudo nano site2
+
+------------------------------------------------------------------------------
+server {
+       listen 82;
+       listen [::]:82;
+
+       server_name site2.com;
+
+       root /var/www/site2;
+       index index.html;
+
+       location / {
+               try_files $uri $uri/ =404;
+       }
+}
+------------------------------------------------------------------------------
+
+sudo service nginx restart     ///  sudo systemctl restart nginx
+//////// ip a 
+
+/////////////// Pentru a securiza /////////////// 
+////  sudo ufw allow OpenSSH  (daca trebuie) 
+
+sudo ufw allow 'Nginx Full'  
+sudo ufw allow 82/tcp      //// 82-sau ce ai pus la 'listen' sus
+sudo ufw enable
+
+*******************************************************
+dupa instalare - APACHE 
+*******************************************************
+//////////////// Configurare //////////////// 
+cd /var/www
+
+sudo cp site site2
+
+cd site2
+
+sudo nano index.html
+------------------------------------------------------------------------------
+<!doctype html>
+<html>
+<head>
+    <title>Helloooooooooo</title>
+</head>
+<body>
+    <h1>Hello</h1>
+</body>
+</html>
+------------------------------------------------------------------------------
+
+cd /etc/apache2/sites-available
+
+sudo cp site.conf site2.conf
+
+sudo nano site2.conf
+---------- schimbam / adaugam :
+---------------------------------------------------------------
+CEL MAI DE SUS -> <VirtualHost *:81> 
+
+
+ServerAdmin yourname@example.com
+DocumentRoot /var/www/site2/
+
+ServerName site2.com
+---------------------------------------------------------------
+sudo a2ensite site2.conf 
+
+sudo nano /etc/apache2/ports.conf
+-- adaugam: Listen 81
+
+sudo systemctl reload apache2
+
+/////////////// Pentru a securiza /////////////// 
+////  sudo ufw allow OpenSSH  (daca trebuie) 
+
+sudo ufw allow 'Apache Full'  
+sudo ufw allow 81/tcp  /// 81-sau ce ai pus la virtualhost sus  
+sudo ufw enable
+
+**********************************************************
+**************** VIRTUAL HOST 2 SITE ***************
+**********************************************************
