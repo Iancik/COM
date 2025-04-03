@@ -275,6 +275,153 @@ sudo ufw allow 'Apache Full'
 sudo ufw allow 81/tcp  /// 81-sau ce ai pus la virtualhost sus  
 sudo ufw enable
 
-**********************************************************
-**************** VIRTUAL HOST 2 SITE ***************
-**********************************************************
+************************************************************
+****************  WORDPRESS NGINX  ***************
+************************************************************
+daca ai instalat NGINX deja  : sudo apt install mysql-server php-fpm php-mysql -y
+		daca nu : sudo apt install nginx mysql-server php-fpm php-mysql -y
+
+
+sudo mysql -u root -p
+
+ - CREATE DATABASE wordpress;
+ - CREATE USER 'user'@'localhost' IDENTIFIED BY 'parola_ta';
+ - GRANT ALL PRIVILEGES ON wordpress.* TO 'user'@'localhost';
+ - FLUSH PRIVILEGES;
+ - EXIT;
+
+cd /var/www
+
+sudo wget https://wordpress.org/latest.tar.gz
+
+sudo tar -xvzf latest.tar.gz
+
+sudo chown -R www-data:www-data wordpress
+
+sudo chmod -R 755 wordpress
+
+cd /etc/nginx/sites-available
+
+sudo cp default wordpress
+
+sudo nano wordpress
+----Sterge '#' daca ai nevoie si adauga/schimba (VERIFICA ATENT)
+--------------------------------------------------------------------------------
+server {
+    listen 80;
+    server_name domeniul-tau.com;
+    root /var/www/wordpress;			
+    index index.php index.html index.htm;          	
+
+    location / {
+        try_files $uri $uri/ /index.php?$args;
+    }
+
+    location ~ \.php$ {
+        include snippets/fastcgi-php.conf;
+        fastcgi_pass unix:/run/php/php-fpm.sock;
+        fastcgi_param SCRIPT_FILENAME $document_root$fastcgi_script_name;
+        include fastcgi_params;
+    }
+
+    location ~ /\.ht {
+        deny all;
+    }
+}
+
+--------------------------------------------------------------------------------
+cd /etc/nginx/sites-enabled/
+
+sudo rm default 
+
+sudo ln -s /etc/nginx/sites-available/wordpress /etc/nginx/sites-enabled/
+
+sudo systemctl restart nginx
+
+///// ip a -pentru ip
+
+**************************************************************
+****************  WORDPRESS APACHE  ***************
+**************************************************************
+
+sudo apt install apache2 mysql-server php php-mysql libapache2-mod-php php-cli php-curl php-xml php-mbstring php-zip unzip -y
+
+sudo apt install mariadb-server mariadb-client
+
+sudo systemctl enable --now mariadb
+
+sudo mysql -u root -p
+ - CREATE DATABASE wordpress;
+ - CREATE USER 'user'@'localhost' IDENTIFIED BY 'parola_ta';
+ - GRANT ALL PRIVILEGES ON wordpress.* TO 'user'@'localhost';
+ - FLUSH PRIVILEGES;
+ - EXIT;
+
+cd /var/www/html
+
+sudo wget https://wordpress.org/latest.tar.gz
+
+sudo tar -xvzf latest.tar.gz
+
+sudo chown -R www-data:www-data /var/www/html/wordpress
+
+sudo chmod -R 755 /var/www/html/wordpress
+
+cd /etc/apache2/sites-available
+
+sudo cp 000-default.conf wordpress.conf
+
+sudo nano wordpress.conf
+--------------------------------------------------------------------------- Vezi ce ai nevoie
+<VirtualHost *:80>
+    ServerAdmin user@localhost
+    DocumentRoot /var/www/html/wordpress
+    ServerName nume.com
+    ServerAlias www.nume.com
+
+    <Directory /var/www/html/wordpress/>
+        AllowOverride All
+        Require all granted
+    </Directory>
+
+    ErrorLog ${APACHE_LOG_DIR}/error.log
+    CustomLog ${APACHE_LOG_DIR}/access.log combined
+</VirtualHost>
+---------------------------------------------------------------------------
+
+sudo a2ensite wordpress
+
+sudo a2dissite 000-default
+
+sudo a2enmod rewrite
+
+sudo systemctl restart apache2
+////////// ip a -pentru ip
+
+
+**************************************************************
+*************************  MYSQL  *************************
+**************************************************************
+daca ai wordpress - skip
+
+daca nu:
+
+sudo apt install mysql-server
+
+sudo systemctl status mysql   (status/start)
+
+sudo mysql_secure_installation
+
+sudo mysql -u root -p	( exit - ca sa iesi)
+
+vezi daca totul merge. si gata
+
+
+
+
+
+
+
+
+
+
